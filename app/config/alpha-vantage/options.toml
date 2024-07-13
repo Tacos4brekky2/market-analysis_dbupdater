@@ -1,0 +1,12 @@
+[historical_options]
+function = "HISTORICAL_OPTIONS"
+[historical_options.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = false
+[historical_options.info]
+table = "symbol"
+collection = "av_historical_options"

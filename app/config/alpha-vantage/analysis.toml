@@ -1,0 +1,56 @@
+[market_news_sentiment] 
+function = "NEWS_SENTIMENT"
+[market_news_sentiment.format]
+data_key = "feed" 
+first_col = ""
+drop_columns = ["banner_image"]
+transpose = false 
+reset_index = false
+reverse_rows = false
+[market_news_sentiment.info]
+table = "symbol"
+collection = "av_market_news_sentiment"
+    
+    
+[top_gainers_losers] 
+function = "TOP_GAINERS_LOSERS"
+[top_gainers_losers.format]
+data_key = "top_gainers"
+first_col = ""
+drop_columns = []
+transpose = false 
+reset_index = false
+reverse_rows = false
+[top_gainers_losers.info]
+table = "top_gainers_losers"
+collection = "av_general"
+    
+
+# Unsure of implementation, collection not initialized
+[analytics_fixed_window] 
+function = "ANALYTICS_FIXED_WINDOW"
+[analytics_fixed_window.format]
+data_key = "payload" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[analytics_fixed_window.info]
+table = ""
+collection = "av_analytics_fixed_window"
+    
+
+# Unsure of implementation, collection not initialized.
+[analytics_sliding_window] 
+function = "ANALYTICS_SLIDING_WINDOW"
+[analytics_sliding_window.format]
+data_key = "" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[analytics_sliding_window.info]
+table = ""
+collection = "analytics_sliding_window"

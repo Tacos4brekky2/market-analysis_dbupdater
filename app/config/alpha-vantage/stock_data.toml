@@ -1,0 +1,138 @@
+[time_series_intraday] 
+function = "TIME_SERIES_INTRADAY"
+[time_series_intraday.format]
+data_key = "Time Series (60min)" 
+first_col = "date"
+drop_columns = [] 
+transpose = true 
+reset_index = true
+reverse_rows = true
+[time_series_intraday.info]
+table = "symbol"
+collection = "av_time_series_intraday"
+
+
+[time_series_daily] 
+function = "TIME_SERIES_DAILY"
+[time_series_daily.format]
+data_key = "Time Series (Daily)" 
+first_col = "date"
+drop_columns = [] 
+transpose = true 
+reset_index = true
+reverse_rows = true
+[time_series_daily.info]
+table = "symbol"
+collection = "av_time_series_daily"
+
+
+[time_series_daily_adjusted] 
+function = "TIME_SERIES_DAILY_ADJUSTED"
+[time_series_daily_adjusted.format]
+data_key = "Time Series (Daily)" 
+first_col = "date"
+drop_columns = []
+transpose = true 
+reset_index = true
+reverse_rows = true
+[time_series_daily_adjusted.info]
+table = "symbol"
+collection = "av_time_series_daily_adjusted"
+
+
+[time_series_weekly] 
+function = "TIME_SERIES_WEEKLY"
+[time_series_weekly.format]
+data_key = "Weekly Time Series" 
+first_col = "date"
+drop_columns = [] 
+transpose = true 
+reset_index = true
+reverse_rows = true
+[time_series_weekly.info]
+table = "symbol"
+collection = "av_time_series_weekly"
+
+
+[time_series_weekly_adjusted] 
+function = "TIME_SERIES_WEEKLY_ADJUSTED"
+[time_series_weekly_adjusted.format]
+data_key = "Weekly Adjusted Time Series" 
+first_col = "date"
+drop_columns = [] 
+transpose = true 
+reset_index = true
+reverse_rows = true
+[time_series_weekly_adjusted.info]
+table = "symbol"
+collection = "av_time_series_weekly_adjusted"
+
+
+[time_series_monthly] 
+function = "TIME_SERIES_MONTHLY"
+[time_series_monthly.format]
+data_key = "Monthly Time Series" 
+first_col = "date"
+drop_columns = [] 
+transpose = true 
+reset_index = true
+reverse_rows = true
+[time_series_monthly.info]
+table = "symbol"
+collection = "av_time_series_monthly"
+
+
+[time_series_monthly_adjusted] 
+function = "TIME_SERIES_MONTHLY_ADJUSTED"
+[time_series_monthly_adjusted.format]
+data_key = "Monthly Adjusted Time Series" 
+first_col = "date"
+drop_columns = []
+transpose = true 
+reset_index = true
+reverse_rows = true
+[time_series_monthly_adjusted.info]
+table = "symbol"
+collection = "av_time_series_monthly_adjusted"
+
+
+[quote_endpoint] 
+function = "GLOBAL_QUOTE"
+[quote_endpoint.format]
+data_key = "" 
+first_col = ""
+drop_columns = []
+transpose = true 
+reset_index = true
+reverse_rows = false
+[quote_endpoint.info]
+table = "null"
+collection = "null"
+
+
+[ticker_search] 
+function = "SYMBOL_SEARCH"
+[ticker_search.format]
+data_key = "" 
+first_col = ""
+drop_columns = []
+transpose = false 
+reset_index = false
+reverse_rows = false
+[ticker_search.info]
+table = "null"
+collection = "null"
+
+
+[global_market_status] 
+function = "MARKET_STATUS"
+[global_market_status.format]
+data_key = "" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = false
+[global_market_status.info]
+table = "null"
+collection = "null"

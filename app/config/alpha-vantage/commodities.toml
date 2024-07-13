@@ -1,0 +1,153 @@
+[wti_crude_oil] 
+function = "WTI"
+[wti_crude_oil.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[wti_crude_oil.info]
+table = "wti_crude_oil"
+collection = "av_commodities"
+
+
+[brent_crude_oil]
+function = "BRENT"
+[brent_crude_oil.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[brent_crude_oil.info]
+table = "brent_crude_oil"
+collection = "av_commodities"
+
+
+[natural_gas]
+function = "NATURAL_GAS"
+[natural_gas.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[natural_gas.info]
+table = "natural_gas"
+collection = "av_commodities"
+
+
+[copper]
+function = "COPPER"
+[copper.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+
+[copper.info]
+table = "copper"
+collection = "av_commodities"
+
+
+[aluminum]
+function = "ALUMINUM"
+[aluminum.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[aluminum.info]
+table = "aluminum"
+collection = "av_commodities"
+
+
+[wheat]
+function = "WHEAT"
+[wheat.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[wheat.info]
+table = "wheat"
+collection = "av_commodities"
+
+
+[corn]
+function = "CORN"
+[corn.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[corn.info]
+table = "corn"
+collection = "av_commodities"
+
+
+[cotton]
+function = "COTTON"
+[cotton.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[cotton.info]
+table = "cotton"
+collection = "av_commodities"
+
+
+[sugar]
+function = "SUGAR"
+[sugar.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[sugar.info]
+table = "sugar"
+collection = "av_commodities"
+
+
+[coffee]
+function = "COFFEE"
+[coffee.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[coffee.info]
+table = "coffee"
+collection = "av_commodities"
+
+
+[global_commodities_index]
+function = "ALL_COMMODITIES"
+[global_commodities_index.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[global_commodities_index.info]
+table = "global_commodities_index"
+collection = "av_commodities"

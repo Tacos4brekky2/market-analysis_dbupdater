@@ -1,0 +1,138 @@
+[real_gdp]
+function = "REAL_GDP"
+[real_gdp.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[real_gdp.info]
+table = "real_gdp"
+collection = "av_economic"
+
+
+[real_gdp_per_capita]
+function = "REAL_GDP_PER_CAPITA"
+[real_gdp_per_capita.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[real_gdp_per_capita.info]
+table = "real_gdp_per_capita"
+collection = "av_economic"
+
+
+[treasury_yield]
+function = "TREASURY_YIELD"
+[treasury_yield.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[treasury_yield.info]
+table = "treasury_yield"
+collection = "av_economic"
+
+
+[federal_funds_rate]
+function = "FEDERAL_FUNDS_RATE"
+[federal_funds_rate.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[federal_funds_rate.info]
+table = "federal_funds_rate"
+collection = "av_economic"
+
+
+[cpi]
+function = "CPI"
+[cpi.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[cpi.info]
+table = "cpi"
+collection = "av_economic"
+
+
+[inflation]
+function = "INFLATION"
+[inflation.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[inflation.info]
+table = "inflation"
+collection = "av_economic"
+
+
+[retail_sales]
+function = "RETAIL_SALES"
+[retail_sales.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[retail_sales.info]
+table = "retail_sales"
+collection = "av_economic"
+
+
+[durable_goods_orders]
+function = "DURABLES"
+[durable_goods_orders.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[durable_goods_orders.info]
+table = "durable_goods_orders"
+collection = "av_economic"
+
+
+[unemployment_rate]
+function = "UNEMPLOYMENT"
+[unemployment_rate.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[unemployment_rate.info]
+table = "unemployment_rate"
+collection = "av_economic"
+
+
+[nonfarm_payroll]
+function = "NONFARM_PAYROLL"
+[nonfarm_payroll.format]
+data_key = "data" 
+first_col = ""
+drop_columns = [] 
+transpose = false 
+reset_index = false
+reverse_rows = true
+[nonfarm_payroll.info]
+table = "nonfarm_payroll"
+collection = "av_economic"
