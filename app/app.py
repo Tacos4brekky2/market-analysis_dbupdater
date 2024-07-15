@@ -1,172 +1,153 @@
-from tools import (
-    message_maker,
-    DBConnection,
-    get_headers,
-    load_api_configs,
-)
-from formatters import format_response
+import os
+from tools import fetch_data, format_data, load_api_configs
+import asyncio
+import aioredis
 import json
+import async_timeout
 import datetime
-import requests
-import toml
-from flask import Flask, request, jsonify, Response
+
+CONFIG_DIR = "api-config"
+REDIS_URI = f'redis://{os.getenv("REDIS_HOST")}:{os.getenv("REDIS_PORT")}'
+SUBSCRIPTION_CHANNEL = "api-request_channel"
+PUBLISH_CHANNEL = "db-store_channel"
+VER = "0.2.0"
 
 
-class UpdaterService:
-    def __init__(self, flask_app: Flask, config_dir: str = "config"):
-        self.app = flask_app
-        self.secrets = toml.load("tools/secrets.toml")
-        self.api_configs = load_api_configs(config_dir=config_dir)
-        if not self.api_configs:
-            return
-        self.register_routes()
-
-    def register_routes(self):
-        self.app.add_url_rule("/", "home", self.home, methods=["GET"])
-        self.app.add_url_rule("/update", "update", self.update, methods=["POST"])
-
-    def home(self) -> Response:
-        return message_maker("StonksDB Updater home.", 200)
-
-    def update(self) -> Response:
-        json_data = request.json
-        debug_values = {
-            "Request data": False,
-            "Headers": False,
-            "Table name": False,
-            "Data formatted": False,
-        }
-        try:
-            if not json_data:
-                return message_maker("Request data not provided.", 560, debug_values)
-            debug_values["Request data"] = True
-            api_name = json_data["api_name"]
-            category = json_data["category"]
-            endpoint = json_data["endpoint"]
-            config = self.api_configs[api_name][category][endpoint]
-            kw = json_data["kw"]
-            kw["function"] = config["function"]
-            headers = get_headers(api_name)
-            if not headers:
-                return message_maker("Failed to load headers.", 560, debug_values)
-            debug_values["Headers"] = True
-            url = self.secrets[api_name]["url"]
-            table_val = config["info"]["table"]
-            table_name = self.get_table_name(table_val=table_val, kw=kw)
-            collection_name = config["info"]["collection"]
-            if not table_name:
-                return message_maker(
-                    "Failed to generate table name.", 560, debug_values
-                )
-            debug_values["Table name"] = True
-            # Check cache before updating to avoid repeat API calls.
-            cached_data = self.cache_read(collection=collection_name, table=table_name)
-            if cached_data.status_code == 200:
-                return jsonify(cached_data)
-            # Update only if request is not cached, or an old request is cached.
-            print("Updating")
-            data_api_response = requests.get(url=url, headers=headers, params=kw)
-            print(config)
-            formatter_response = format_response(
-                api_name=api_name,
-                formatter_config=config["format"],
-                response=data_api_response,
-            )
-            if formatter_response.status_code != 200:
-                return jsonify(formatter_response)
-            data = formatter_response.get_json()["data"]
-            debug_values["Data formatted"] = True
-            cache_response = self.cache_write(
-                table=table_name, collection=collection_name, data=data
-            )
-            return cache_response
-        except Exception as e:
-            return message_maker(
-                "Updater service exception.", 560, {**debug_values, **{"exception": e}}
-            )
-
-    def cache_write(
+class Updater:
+    def __init__(
         self,
-        collection: str,
-        table: str,
+        redis_uri: str,
+        api_configs: dict,
+        subscription_channel: str,
+        publish_channel: str,
+        version: str,
+    ):
+        self.redis_uri = redis_uri
+        self.api_configs = api_configs
+        self.sub_channel = subscription_channel
+        self.pub_channel = publish_channel
+        self.version = version
+        self.redis = None
+        self.pubsub = None
+
+    async def setup(self):
+        print("---STARTING---")
+        print(f"Updater Version: {VER}")
+        self.redis = aioredis.from_url(
+            self.redis_uri, password=os.getenv("REDIS_PASSWORD")
+        )
+        print("Connected to Redis")
+        self.pubsub = self.redis.pubsub()
+        await self.pubsub.subscribe(SUBSCRIPTION_CHANNEL)
+        print(f"Subscribed to {SUBSCRIPTION_CHANNEL}")
+
+    async def listen(self):
+        while True and (self.pubsub is not None):
+            message = await self.pubsub.get_message(ignore_subscribe_messages=True)
+            if message:
+                await self.handle_message(message)
+            await asyncio.sleep(0.01)
+
+    async def handle_message(self, message):
+        try:
+            data = json.loads(message["data"])
+            meta = json.loads(message["metadata"])
+            api = self.api_configs[data["api_name"]]
+            print(f"Received message: {data}")
+            match message["type"]:
+                case "FETCH_DATA":
+                    await self.process_update(
+                        request_url=api["url"],
+                        request_headers=api["headers"],
+                        request_params=data["params"],
+                        api_name=data["api_name"],
+                        formatting_template=api["endpoints"][data["endpoint"]][
+                            "format"
+                        ],
+                        correlation_id=meta["correlation_id"]
+                    )
+        except json.JSONDecodeError:
+            print("Failed to decode JSON message")
+
+    async def publish_message(
+        self,
+        message_type: str,
+        priority: int,
         data: dict,
-    ) -> Response:
-        print("Caching request data.")
-        debug_values = {"Cache connection": False, "Data cached": False}
-        try:
-            timestamp = datetime.datetime.now().strftime("%Y/%m/%d-%H:%M:%S")
-            cache = DBConnection().connect("redis")
-            if not cache:
-                return message_maker("Cache connection failed.", 560, debug_values)
-            cache = cache.exception
-            debug_values["Cache connection"] = True
-            meta = {
-                "timestamp": timestamp,
-                "table": table,
-                "collection": collection,
-            }
-            cache_info = {
-                "sender": "updater",
-                "destination": "stonksdb",
-                "tags": [
-                    "db:write",
-                ],
-            }
-            cache_entry = json.dumps(
-                {"meta": meta, "data": data, "cache_info": cache_info}
-            )
-            cache.set(f"{collection}:{table}", cache_entry)
-            debug_values["Data cached"] = True
-            return message_maker(
-                "Cache write successful.", 200, debug_values, data=meta
-            )
-        except Exception as e:
-            return message_maker(
-                "Cache write exception",
-                560,
-                {**debug_values, **{"exception": e}},
-            )
+        correlation_id: str,
+        api_name: str,
+    ):
+        print(f"Publishing to channel: {self.pub_channel}")
+        message = {
+            "type": message_type,
+            "source": "market-analysis_dbupdater",
+            "timestamp": datetime.datetime.now(),
+            "priority": priority,
+            "data": data,
+            "metadata": {
+                "version": self.version,
+                "correlation_id": correlation_id,
+                "api_name": api_name,
+            },
+        }
+        if self.pubsub:
+            await self.pubsub.publish(self.pub_channel, json.dumps(message))
 
-    def cache_read(self, collection: str, table: str) -> Response:
-        print("Checking cache for request.")
-        debug_values = {"Cache connection": False}
+    async def process_update(
+        self,
+        request_url: str,
+        request_headers: dict,
+        request_params: dict,
+        api_name: str,
+        formatting_template: dict,
+        correlation_id: str
+    ):
         try:
-            cache = DBConnection().connect("redis")
-            if not cache:
-                return message_maker("Cache connection failed.", 560, debug_values)
-            debug_values["Cache connection"] = True
-            entry = json.loads(cache.get(f"{collection}:{table}"))
-            if entry:
-                return message_maker(
-                    "Found cached data.",
-                    200,
-                    debug_values,
-                    data=entry,
-                )
-            else:
-                return message_maker(
-                    "No data found in cache.",
-                    560,
-                    debug_values,
+            print(f"Processing update with API: {api_name}")
+            request_data = await fetch_data(
+                url=request_url,
+                headers=request_headers,
+                params=request_params,
+            )
+            formatted_data = format_data(
+                api_name=api_name,
+                formatting_template=formatting_template,
+                data=request_data if request_data else dict(),
+            )
+            if formatted_data:
+                await self.publish_message(
+                    message_type="STORE_DATA",
+                    priority=0,
+                    data=formatted_data,
+                    correlation_id=correlation_id,
+                    api_name=api_name,
                 )
         except Exception as e:
-            return message_maker(
-                "Cache read exception.", 560, {**debug_values, **{"exception": e}}
-            )
+            print(f"Error processing message: {e}")
 
-    def get_table_name(self, table_val: str, kw: dict) -> str:
-        table_name = [
-            kw[x].lower() for x in kw.keys() if x.lower() == table_val.lower()
-        ]
-        if table_name:
-            table_name = str(table_name[0])
-            return table_name
-        return str()
+    async def close(self):
+        if self.pubsub and self.redis:
+            await self.pubsub.unsubscribe(self.sub_channel)
+            await self.redis.close()
+
+
+async def main():
+    api_configs = load_api_configs(config_dir=CONFIG_DIR)
+    updater = Updater(
+        redis_uri=REDIS_URI,
+        api_configs=api_configs,
+        publish_channel=PUBLISH_CHANNEL,
+        subscription_channel=SUBSCRIPTION_CHANNEL,
+        version=VER,
+    )
+    await updater.setup()
+    try:
+        await updater.listen()
+    except KeyboardInterrupt:
+        print("Shutting down...")
+    finally:
+        await updater.close()
 
 
 if __name__ == "__main__":
-    app = Flask(__name__)
-    port = 5000
-    host = "localhost"
-    updater = UpdaterService(flask_app=app)
-    app.run(host=host, port=port, debug=False)
+    asyncio.run(main())

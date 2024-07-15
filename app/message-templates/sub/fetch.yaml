@@ -1,0 +1,12 @@
+type: "FETCH_DATA"
+source: ""
+timestamp: ""
+priority: 0
+data:
+  api_name: ""
+  endpoint: ""
+  params:
+metadata:
+  version: ""
+  correlationId: ""
+  lastEntryDate: ""

@@ -2,8 +2,8 @@ from .base import FormatterBase
 import pandas as pd
 
 class AlphaVantageFormatter(FormatterBase):
-    def __init__(self, response, formatter_config: dict):
-       super().__init__(response=response, formatter_config=formatter_config)
+    def __init__(self, data: dict, formatter_config: dict):
+       super().__init__(data=data, formatter_config=formatter_config)
 
     def format(self) -> dict:
         df = pd.DataFrame(self.data)
