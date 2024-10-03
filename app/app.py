@@ -1,152 +1,147 @@
+from tools import parse_response_csv, get_headers
+import yaml
 import os
-from tools import fetch_data, format_data, load_api_configs
-import asyncio
-import aioredis
 import json
-import async_timeout
-import datetime
-
-CONFIG_DIR = "api-config"
-REDIS_URI = f'redis://{os.getenv("REDIS_HOST")}:{os.getenv("REDIS_PORT")}'
-SUBSCRIPTION_CHANNEL = "api-request_channel"
-PUBLISH_CHANNEL = "db-store_channel"
-VER = "0.2.0"
+import asyncio
+from redis import asyncio as aioredis
+import aiohttp
 
 
-class Updater:
-    def __init__(
-        self,
-        redis_uri: str,
-        api_configs: dict,
-        subscription_channel: str,
-        publish_channel: str,
-        version: str,
-    ):
-        self.redis_uri = redis_uri
-        self.api_configs = api_configs
-        self.sub_channel = subscription_channel
-        self.pub_channel = publish_channel
-        self.version = version
-        self.redis = None
-        self.pubsub = None
+# Database updater service for https://github.com/Tacos4brekky2/market-analysis_server
 
-    async def setup(self):
-        print("---STARTING---")
-        print(f"Updater Version: {VER}")
-        self.redis = aioredis.from_url(
-            self.redis_uri, password=os.getenv("REDIS_PASSWORD")
-        )
-        print("Connected to Redis")
-        self.pubsub = self.redis.pubsub()
-        await self.pubsub.subscribe(SUBSCRIPTION_CHANNEL)
-        print(f"Subscribed to {SUBSCRIPTION_CHANNEL}")
+INPUT_STREAMS = ["updater-in"]
+OUTPUT_STREAM = "updater-out"
+CONSUMER_GROUP = "market-analysis_server"
+CONSUMER_NAME = "updater-consumer"
 
-    async def listen(self):
-        while True and (self.pubsub is not None):
-            message = await self.pubsub.get_message(ignore_subscribe_messages=True)
-            if message:
-                await self.handle_message(message)
-            await asyncio.sleep(0.01)
+REDIS_PARAMS = {
+    "host": os.getenv("REDIS_HOST", "localhost"),
+    "port": os.getenv("REDIS_PORT", "6379"),
+    "password": os.getenv("REDIS_PASSWORD", ""),
+}
 
-    async def handle_message(self, message):
+CONFIG = dict()
+with open("config/request_params.yaml") as file:
+    CONFIG = yaml.safe_load(file)
+
+
+def deserialize_message(message):
+    deserialized_message = dict()
+    for key, value in message.items():
         try:
-            data = json.loads(message["data"])
-            meta = json.loads(message["metadata"])
-            api = self.api_configs[data["api_name"]]
-            print(f"Received message: {data}")
-            match message["type"]:
-                case "FETCH_DATA":
-                    await self.process_update(
-                        request_url=api["url"],
-                        request_headers=api["headers"],
-                        request_params=data["params"],
-                        api_name=data["api_name"],
-                        formatting_template=api["endpoints"][data["endpoint"]][
-                            "format"
-                        ],
-                        correlation_id=meta["correlation_id"]
-                    )
-        except json.JSONDecodeError:
-            print("Failed to decode JSON message")
+            deserialized_message[key] = json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            deserialized_message[key.decode("utf-8")] = value.decode("utf-8")
+    return deserialized_message
 
-    async def publish_message(
-        self,
-        message_type: str,
-        priority: int,
-        data: dict,
-        correlation_id: str,
-        api_name: str,
-    ):
-        print(f"Publishing to channel: {self.pub_channel}")
-        message = {
-            "type": message_type,
-            "source": "market-analysis_dbupdater",
-            "timestamp": datetime.datetime.now(),
-            "priority": priority,
-            "data": data,
-            "metadata": {
-                "version": self.version,
-                "correlation_id": correlation_id,
-                "api_name": api_name,
-            },
-        }
-        if self.pubsub:
-            await self.pubsub.publish(self.pub_channel, json.dumps(message))
 
-    async def process_update(
-        self,
-        request_url: str,
-        request_headers: dict,
-        request_params: dict,
-        api_name: str,
-        formatting_template: dict,
-        correlation_id: str
-    ):
+async def create_redis_groups(redis, input_streams: list):
+    for stream in input_streams:
         try:
-            print(f"Processing update with API: {api_name}")
-            request_data = await fetch_data(
-                url=request_url,
-                headers=request_headers,
-                params=request_params,
-            )
-            formatted_data = format_data(
-                api_name=api_name,
-                formatting_template=formatting_template,
-                data=request_data if request_data else dict(),
-            )
-            if formatted_data:
-                await self.publish_message(
-                    message_type="STORE_DATA",
-                    priority=0,
-                    data=formatted_data,
-                    correlation_id=correlation_id,
-                    api_name=api_name,
-                )
+            await redis.xgroup_create(stream, CONSUMER_GROUP, id="0", mkstream=True)
         except Exception as e:
-            print(f"Error processing message: {e}")
+            print(f"Error creating consumer group: {e}")
 
-    async def close(self):
-        if self.pubsub and self.redis:
-            await self.pubsub.unsubscribe(self.sub_channel)
-            await self.redis.close()
+
+async def consume(redis, input_streams: list):
+    await create_redis_groups(redis=redis, input_streams=input_streams)
+    while True:
+        messages = await redis.xreadgroup(
+            groupname=CONSUMER_GROUP,
+            consumername=CONSUMER_NAME,
+            streams={x: ">" for x in input_streams},
+            count=10,
+        )
+        for stream, message_list in messages:
+            for message_id, message in message_list:
+                deserialized_message = deserialize_message(message)
+                await handle_message(
+                    redis=redis,
+                    stream=stream,
+                    message=deserialized_message,
+                    message_id=message_id,
+                )
+                print(f"Consumed message {message_id}")
+
+
+async def handle_message(redis, stream: str, message, message_id):
+    try:
+        message_type = message["type"]
+        request_id = message["request_id"]
+        del message["request_id"]
+        del message["type"]
+        match message_type:
+            case "FETCH_REQUEST":
+                request_data = await fetch_data(
+                    api_name=message["api_name"], params=message
+                )
+                await produce(
+                    redis=redis,
+                    message_type="DATA_FETCHED",
+                    request_id=request_id,
+                    params=message,
+                    payload=request_data,
+                )
+                await redis.xack(stream, CONSUMER_GROUP, message_id)
+    except json.JSONDecodeError:
+        print("Failed to decode JSON message")
+    except Exception as e:
+        print(f"Updater error: {e}")
+
+
+async def produce(
+    redis, message_type: str, request_id: str, params, payload: dict = dict()
+):
+    message = {
+        k: (json.dumps(v) if isinstance(v, dict) else str(v))
+        for k, v in payload.items()
+    }
+    message["type"] = message_type
+    message["request_id"] = request_id
+    message["params"] = json.dumps(params)
+    response = await redis.xadd(OUTPUT_STREAM, fields=message)
+    print(f"Produce: {response}")
+
+
+async def fetch_data(api_name: str, params: dict = dict()) -> dict:
+    request_params = CONFIG[api_name]
+    new_headers = await get_headers(request_params["headers"])
+    request_params["headers"] = new_headers
+    request_params["params"] = params
+    async with aiohttp.ClientSession() as session:
+        print(f"Fetching data from url: {request_params["url"]}")
+        async with session.get(**request_params) as response:
+            response.raise_for_status()
+            try:
+                data = await response.json()
+                print("Found response json.")
+                if data:
+                    return data
+            except Exception as e:
+                print(f"Error getting response json: {e}")
+            try:
+                csv_text = await response.text()
+                data = await parse_response_csv(csv_text)
+                print("Found response csv.")
+                if data:
+                    return data
+            except Exception as e:
+                print(f"Error fetching data: {e}")
+    return dict()
 
 
 async def main():
-    api_configs = load_api_configs(config_dir=CONFIG_DIR)
-    updater = Updater(
-        redis_uri=REDIS_URI,
-        api_configs=api_configs,
-        publish_channel=PUBLISH_CHANNEL,
-        subscription_channel=SUBSCRIPTION_CHANNEL,
-        version=VER,
+    redis = aioredis.from_url(
+        f'redis://{REDIS_PARAMS["host"]}:{REDIS_PARAMS["port"]}',
+        password=os.getenv("REDIS_PASSWORD", ""),
     )
-    await updater.setup()
     try:
-        await updater.listen()
+        while True:
+            await consume(redis=redis, input_streams=INPUT_STREAMS)
     except KeyboardInterrupt:
         print("Shutting down...")
     finally:
-        await updater.close()
+        print("Updater shut down.")
 
 
 if __name__ == "__main__":

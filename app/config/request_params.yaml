@@ -1,0 +1,9 @@
+alpha-vantage:
+  url: "https://alpha-vantage.p.rapidapi.com/query"
+  headers:
+    X-RapidAPI-Key:
+      val: "STONKS_KEY_RAPIDAPI"
+      env: "true"
+    X-RapidAPI-Host:
+      val: "alpha-vantage.p.rapidapi.com"
+      env: "false"
